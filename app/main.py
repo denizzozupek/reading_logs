@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
+from typing import Annotated
 
 from app import schemas
 from app.database import SessionLocal
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+AnnotatedDate = Annotated[date | None, Query(description="Filter by date (YYYY-MM-DD)")]
 
 
 def get_db():
@@ -54,8 +57,8 @@ def get_all_books(db: Session = Depends(get_db)):
 @app.get("/stats/total-pages/", response_model=schemas.TotalPagesResponse)
 def get_total_read_pages_endpoint(
     db: Session = Depends(get_db),
-    start_date: date | None = None,
-    end_date: date | None = None,
+    start_date: AnnotatedDate = None,
+    end_date: AnnotatedDate = None,
 ):
     total_pages = crud.get_total_read_pages(
         db, start_date=start_date, end_date=end_date
@@ -66,8 +69,8 @@ def get_total_read_pages_endpoint(
 @app.get("/stats/total-books/", response_model=schemas.TotalBooksResponse)
 def get_total_books_endpoint(
     db: Session = Depends(get_db),
-    start_date: date | None = None,
-    end_date: date | None = None,
+    start_date: AnnotatedDate = None,
+    end_date: AnnotatedDate = None,
 ):
     total_books = crud.get_total_books_read(db, start_date=start_date, end_date=end_date)
     return {"total_books": total_books}
@@ -76,8 +79,8 @@ def get_total_books_endpoint(
 @app.get("/stats/total-books-by-genre/")
 def get_total_books_by_genre_endpoint(
     db: Session = Depends(get_db),
-    start_date: date | None = None,
-    end_date: date | None = None,
+    start_date: AnnotatedDate = None,
+    end_date: AnnotatedDate = None,
 ):
     return crud.get_total_books_read_by_genre(
         db, start_date=start_date, end_date=end_date
@@ -87,8 +90,8 @@ def get_total_books_by_genre_endpoint(
 @app.get("/stats/total-books-by-author/")
 def get_total_books_read_by_author_endpoint(
     db: Session = Depends(get_db),
-    start_date: date | None = None,
-    end_date: date | None = None,
+    start_date: AnnotatedDate = None,
+    end_date: AnnotatedDate = None,
 ):
     return crud.get_total_books_read_by_author(
         db, start_date=start_date, end_date=end_date
