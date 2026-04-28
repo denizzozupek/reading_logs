@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select
+from sqlalchemy import select, func
 from datetime import date
-from models import Book, ReadLog
+from app.models import Book, ReadLog
 from app.schemas import BookAndLogCreate
 
 
@@ -42,6 +42,16 @@ def create_book_and_log(db: Session, data: BookAndLogCreate):
 
     return new_log
 
+
+def _date_filter(query, start_date: date | None = None, end_date: date | None = None):
+    if start_date:
+        normalized_start_date = date(start_date.year, start_date.month, 1)
+        query = query.where(ReadLog.read_date >= normalized_start_date)
+    if end_date:
+        query = query.where(ReadLog.read_date <= end_date)
+    return query
+
+
 def delete_book_log(db: Session, log_id: int):
     db_log = db.query(ReadLog).filter(ReadLog.id == log_id).first()
     if db_log:
@@ -50,5 +60,59 @@ def delete_book_log(db: Session, log_id: int):
         return True
     return False
 
+
 def get_all_logs(db: Session):
     return db.query(ReadLog).options(selectinload(ReadLog.book)).all()
+
+
+def get_total_read_pages(
+    db: Session, start_date: date | None = None, end_date: date | None = None
+):
+    query = select(func.sum(ReadLog.read_pages)).where(ReadLog.status == "okundu")
+    query = _date_filter(query, start_date, end_date)
+    total_pages = db.execute(query).scalar()
+    return total_pages if total_pages else 0
+
+
+def get_total_books_read(
+    db: Session, start_date: date | None = None, end_date: date | None = None
+):
+    query = select(func.count(ReadLog.id)).where(ReadLog.status == "okundu")
+    query = _date_filter(query, start_date, end_date)
+
+    total_books = db.execute(query).scalar()
+    return total_books if total_books else 0
+
+
+def get_total_books_read_by_genre(
+    db: Session, start_date: date | None = None, end_date: date | None = None
+):
+    query = (
+        select(Book.genre, func.count(ReadLog.id))
+        .join(ReadLog)
+        .where(ReadLog.status == "okundu")
+        .group_by(Book.genre)
+    )
+
+    query = _date_filter(query, start_date, end_date)
+
+    results = db.execute(query).all()
+    return {genre: count for genre, count in results}
+
+
+def get_total_books_read_by_author(
+    db: Session, start_date: date | None = None, end_date: date | None = None
+):
+    query = (
+        select(Book.author, func.count(ReadLog.id))
+        .join(ReadLog)
+        .where(ReadLog.status == "okundu")
+        .group_by(Book.author)
+        .having(func.count(ReadLog.id) > 1)
+    )
+    query = _date_filter(query, start_date, end_date)
+    results = db.execute(query).all()
+    return {author: count for author, count in results}
+
+def get_all_books(db: Session):
+    return db.query(Book).all()

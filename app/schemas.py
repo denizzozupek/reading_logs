@@ -19,7 +19,7 @@ class BookResponse(BaseModel):
     genre: str
     page_count: int
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True} # This allows Pydantic to create a BookResponse from an ORM model instance
 
 class LogResponse(BaseModel):
     id: int
@@ -31,4 +31,11 @@ class LogResponse(BaseModel):
 
     book: BookResponse | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True} # This allows Pydantic to create a LogResponse from an ORM model instance
+
+class TotalPagesResponse(BaseModel):
+    total_pages: int
+
+class TotalBooksResponse(BaseModel):
+    total_books: int
+
