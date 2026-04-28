@@ -1,7 +1,7 @@
 import csv
 from datetime import date
-from database import SessionLocal
-from models import Book, ReadLog
+from app.database import SessionLocal
+from app.models import Book, ReadLog
 
 csv_file = "okuma_listesi.csv"
 
