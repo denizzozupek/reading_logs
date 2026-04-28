@@ -22,7 +22,7 @@ with SessionLocal() as s:
             )
 
             new_log = ReadLog(
-                status="Okundu",
+                status="okundu",
                 rating=int(row["rating"]),
                 read_date=read_date,
                 read_pages=page_count,

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from datetime import date
 from app.models import Book, ReadLog
 from app.schemas import BookAndLogCreate
@@ -92,12 +92,13 @@ def get_total_books_read_by_genre(
         .join(ReadLog)
         .where(ReadLog.status == "okundu")
         .group_by(Book.genre)
+        .order_by(func.count(ReadLog.id).desc())
     )
 
     query = _date_filter(query, start_date, end_date)
 
     results = db.execute(query).all()
-    return {genre: count for genre, count in results}
+    return [{"genre": genre, "count": count} for genre, count in results]
 
 
 def get_total_books_read_by_author(
@@ -109,10 +110,75 @@ def get_total_books_read_by_author(
         .where(ReadLog.status == "okundu")
         .group_by(Book.author)
         .having(func.count(ReadLog.id) > 1)
+        .order_by(func.count(ReadLog.id).desc())
     )
     query = _date_filter(query, start_date, end_date)
     results = db.execute(query).all()
-    return {author: count for author, count in results}
+    return [{"author": author, "count": count} for author, count in results]
+
 
 def get_all_books(db: Session):
     return db.query(Book).all()
+
+
+def get_rating_average_by_genre(db: Session):
+    query = select(Book.genre, func.avg(ReadLog.rating))
+    query = query.join(ReadLog).where(ReadLog.status == "okundu").group_by(Book.genre)
+    results = db.execute(query).all()
+    return [
+        {"genre": genre, "average_rating": round(avg_rating, 1)}
+        for genre, avg_rating in results
+    ]
+
+
+def get_rating_average_by_author(db: Session):
+    query = (
+        select(Book.author, func.avg(ReadLog.rating))
+        .join(ReadLog)
+        .where(ReadLog.status == "okundu")
+        .group_by(Book.author)
+        .having(func.count(ReadLog.id) > 1)
+    )
+    results = db.execute(query).all()
+    return [
+        {"author": author, "average_rating": round(avg_rating, 1)}
+        for author, avg_rating in results
+    ]
+
+
+def get_book_with_id(db: Session, book_id: int):
+    book = db.query(Book).filter(Book.id == book_id)
+    book = db.execute(book).scalar_one_or_none()
+    return book
+
+
+def get_log_with_id(db: Session, log_id: int):
+    log = (
+        db.query(ReadLog)
+        .options(selectinload(ReadLog.book))
+        .filter(ReadLog.id == log_id)
+    )
+    log = db.execute(log).scalar_one_or_none()
+    return log
+
+
+def monthly_reading_stats(db: Session, year: int | None = None):
+    query = (
+        select(
+            func.date_part("month", ReadLog.read_date).label("month"),
+            func.count(ReadLog.id),
+            func.sum(ReadLog.read_pages),
+        )
+        .where(ReadLog.status == "okundu")
+        .group_by(func.date_part("month", ReadLog.read_date))
+        .order_by(func.date_part("month", ReadLog.read_date))
+    )
+
+    query = query.where(
+        or_(year is None, func.date_part("year", ReadLog.read_date) == year)
+    )
+    results = db.execute(query).all()
+    return [
+        {"month": int(month), "count": count, "total_pages": int(total_pages) if total_pages else 0}
+        for month, count, total_pages in results
+    ]

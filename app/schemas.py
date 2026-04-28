@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import date
 
+
 class BookAndLogCreate(BaseModel):
     title: str
     author: str
@@ -19,7 +20,10 @@ class BookResponse(BaseModel):
     genre: str
     page_count: int
 
-    model_config = {"from_attributes": True} # This allows Pydantic to create a BookResponse from an ORM model instance
+    model_config = {
+        "from_attributes": True
+    }  # This allows Pydantic to create a BookResponse from an ORM model instance
+
 
 class LogResponse(BaseModel):
     id: int
@@ -31,11 +35,39 @@ class LogResponse(BaseModel):
 
     book: BookResponse | None = None
 
-    model_config = {"from_attributes": True} # This allows Pydantic to create a LogResponse from an ORM model instance
+    model_config = {
+        "from_attributes": True
+    }  # This allows Pydantic to create a LogResponse from an ORM model instance
+
 
 class TotalPagesResponse(BaseModel):
     total_pages: int
 
+
 class TotalBooksResponse(BaseModel):
     total_books: int
 
+
+class GenreCountResponse(BaseModel):
+    genre: str
+    count: int
+
+
+class AuthorCountResponse(BaseModel):
+    author: str
+    count: int
+
+
+class RatingAverageForGenreResponse(BaseModel):
+    genre: str
+    average_rating: float
+
+
+class RatingAverageForAuthorResponse(BaseModel):
+    author: str
+    average_rating: float
+
+class MonthlyReadingStatsResponse(BaseModel):
+    month: int
+    count: int
+    total_pages: int
