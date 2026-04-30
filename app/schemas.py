@@ -1,6 +1,12 @@
 from pydantic import BaseModel, Field
 from datetime import date
 
+from enum import Enum
+
+class ReadingStatus(str, Enum):
+    OKUNDU = "okundu"
+    OKUNUYOR = "okunuyor"
+    YARIM_KALDI = "yarım_kaldı"
 
 class BookAndLogCreate(BaseModel):
     title: str
@@ -67,7 +73,12 @@ class RatingAverageForAuthorResponse(BaseModel):
     author: str
     average_rating: float
 
+
 class MonthlyReadingStatsResponse(BaseModel):
     month: int
     count: int
     total_pages: int
+
+class BookPageAverageResponse(BaseModel):
+    average_pages: float
+

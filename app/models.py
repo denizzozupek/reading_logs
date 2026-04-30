@@ -1,5 +1,5 @@
 from app.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 class Book(Base):
@@ -9,6 +9,8 @@ class Book(Base):
     author = Column(String, nullable=False)
     genre = Column(String, nullable=False)
     page_count = Column(Integer, nullable=False)
+
+    __table_args__ = (UniqueConstraint('title', 'author', name='uix_title_author'),)
 
     logs = relationship('ReadLog', back_populates='book')
 

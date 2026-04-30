@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from datetime import date
 from app.models import Book, ReadLog
 from app.schemas import BookAndLogCreate
@@ -20,8 +20,7 @@ def create_book_and_log(db: Session, data: BookAndLogCreate):
             page_count=data.page_count,
         )
         db.add(db_book)
-        db.commit()
-        db.refresh(db_book)
+        db.flush()  # Flush to get the book ID for the log entry before committing (if we commit here, we won't be able to roll back the book creation if the log creation fails)
 
     # Turn the read_month and read_year into a date object (using the first day of the month)
     read_month = data.read_month
@@ -61,8 +60,51 @@ def delete_book_log(db: Session, log_id: int):
     return False
 
 
-def get_all_logs(db: Session):
-    return db.query(ReadLog).options(selectinload(ReadLog.book)).all()
+def get_all_logs(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    rating_filter: int | None = None,
+):
+    query = (
+        select(ReadLog)
+        .join(Book)
+        .options(selectinload(ReadLog.book))
+        .where(ReadLog.status == "okundu")
+    )
+    query = _date_filter(query, start_date, end_date)
+
+    if rating_filter is not None:
+        query = query.where(ReadLog.rating == rating_filter)
+
+    if sort_by is not None:
+
+        if sort_by == "pages":
+            query = query.order_by(ReadLog.read_pages.desc())
+
+        else:
+            query = query.order_by(ReadLog.read_date.desc())
+
+    query = query.offset(skip)
+
+    if limit is not None:
+        query = query.limit(limit)
+
+    return db.execute(query).scalars().all()
+
+
+def get_books_pages_average(db: Session):
+    query = (
+        select(func.avg(Book.page_count))
+        .join(ReadLog)
+        .where(ReadLog.status == "okundu")
+        .where(Book.genre.notin_(["Çizgi Roman", "Manga"]))
+    )
+    average_pages = db.execute(query).scalar()
+    return round(average_pages, 1) if average_pages else 0.0
 
 
 def get_total_read_pages(
@@ -81,7 +123,7 @@ def get_total_books_read(
     query = _date_filter(query, start_date, end_date)
 
     total_books = db.execute(query).scalar()
-    return total_books if total_books else 0
+    return total_books
 
 
 def get_total_books_read_by_genre(
@@ -91,11 +133,11 @@ def get_total_books_read_by_genre(
         select(Book.genre, func.count(ReadLog.id))
         .join(ReadLog)
         .where(ReadLog.status == "okundu")
-        .group_by(Book.genre)
-        .order_by(func.count(ReadLog.id).desc())
     )
 
     query = _date_filter(query, start_date, end_date)
+
+    query = query.group_by(Book.genre).order_by(func.count(ReadLog.id).desc())
 
     results = db.execute(query).all()
     return [{"genre": genre, "count": count} for genre, count in results]
@@ -108,17 +150,22 @@ def get_total_books_read_by_author(
         select(Book.author, func.count(ReadLog.id))
         .join(ReadLog)
         .where(ReadLog.status == "okundu")
-        .group_by(Book.author)
+    )
+    query = _date_filter(query, start_date, end_date)
+
+    query = (
+        query.group_by(Book.author)
         .having(func.count(ReadLog.id) > 1)
         .order_by(func.count(ReadLog.id).desc())
     )
-    query = _date_filter(query, start_date, end_date)
+
     results = db.execute(query).all()
     return [{"author": author, "count": count} for author, count in results]
 
 
 def get_all_books(db: Session):
-    return db.query(Book).all()
+    query = select(Book).order_by(Book.title)
+    return db.execute(query).scalars().all()
 
 
 def get_rating_average_by_genre(db: Session):
@@ -147,18 +194,13 @@ def get_rating_average_by_author(db: Session):
 
 
 def get_book_with_id(db: Session, book_id: int):
-    book = db.query(Book).filter(Book.id == book_id)
-    book = db.execute(book).scalar_one_or_none()
-    return book
+    query = select(Book).where(Book.id == book_id)
+    return db.execute(query).scalar_one_or_none()
 
 
 def get_log_with_id(db: Session, log_id: int):
-    log = (
-        db.query(ReadLog)
-        .options(selectinload(ReadLog.book))
-        .filter(ReadLog.id == log_id)
-    )
-    log = db.execute(log).scalar_one_or_none()
+    query = select(ReadLog).where(ReadLog.id == log_id)
+    log = db.execute(query).scalar_one_or_none()
     return log
 
 
@@ -174,11 +216,14 @@ def monthly_reading_stats(db: Session, year: int | None = None):
         .order_by(func.date_part("month", ReadLog.read_date))
     )
 
-    query = query.where(
-        or_(year is None, func.date_part("year", ReadLog.read_date) == year)
-    )
+    if year is not None:
+        query = query.where(func.date_part("year", ReadLog.read_date) == year)
     results = db.execute(query).all()
     return [
-        {"month": int(month), "count": count, "total_pages": int(total_pages) if total_pages else 0}
+        {
+            "month": int(month),
+            "count": count,
+            "total_pages": int(total_pages) if total_pages else 0,
+        }
         for month, count, total_pages in results
     ]

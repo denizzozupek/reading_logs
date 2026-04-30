@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from app import schemas
 from app.database import SessionLocal
@@ -44,10 +44,6 @@ def delete_reading_log(log_id: int, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail="Log not found")
 
-
-@app.get("/readinglogs/", response_model=list[LogResponse])
-def get_all_logs(db: Session = Depends(get_db)):
-    return crud.get_all_logs(db)
 
 
 @app.get("/readinglogs/{log_id}", response_model=LogResponse)
@@ -146,3 +142,19 @@ def get_monthly_reading_stats_endpoint(
     year: Annotated[int | None, Query(description="Filter by year (e.g. 2024)")] = None,
 ):
     return crud.monthly_reading_stats(db, year=year)
+
+@app.get("/stats/readinglogs/", response_model=list[schemas.LogResponse])
+def get_all_logs(db: Session = Depends(get_db),
+                 skip: int = 0,
+                 limit: int = 100,
+                 sort_by: Literal["date", "pages"] | None = None,
+                 start_date: AnnotatedDate = None,
+                 end_date: AnnotatedDate = None,
+                 rating_filter: int | None = Query(default=None, ge=1, le=10)):
+    
+    return crud.get_all_logs(db, skip=skip, limit=limit, sort_by=sort_by, start_date=start_date, end_date=end_date, rating_filter=rating_filter)
+
+@app.get("/stats/books-pages-average/", response_model=schemas.BookPageAverageResponse)
+def books_pages_average(db: Session = Depends(get_db)):
+    avg_pages = crud.get_books_pages_average(db)
+    return {"average_pages": avg_pages}
