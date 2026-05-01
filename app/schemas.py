@@ -3,10 +3,12 @@ from datetime import date
 
 from enum import Enum
 
+
 class ReadingStatus(str, Enum):
     OKUNDU = "okundu"
     OKUNUYOR = "okunuyor"
     YARIM_KALDI = "yarım_kaldı"
+
 
 class BookAndLogCreate(BaseModel):
     title: str
@@ -17,6 +19,19 @@ class BookAndLogCreate(BaseModel):
     rating: int = Field(ge=1, le=10)
     read_month: int = Field(ge=1, le=12)
     read_year: int = Field(ge=2000, le=date.today().year)
+
+
+class BookUpdate(BaseModel):
+    title: str | None = None
+    author: str | None = None
+    genre: str | None = None
+    page_count: int | None = None
+
+
+class LogUpdate(BaseModel):
+    rating: int | None = Field(default=None, ge=1, le=10)
+    read_month: int | None = Field(default=None, ge=1, le=12)
+    read_year: int | None = Field(default=None, ge=2000, le=date.today().year)
 
 
 class BookResponse(BaseModel):
@@ -79,6 +94,6 @@ class MonthlyReadingStatsResponse(BaseModel):
     count: int
     total_pages: int
 
+
 class BookPageAverageResponse(BaseModel):
     average_pages: float
-

@@ -45,7 +45,6 @@ def delete_reading_log(log_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Log not found")
 
 
-
 @app.get("/readinglogs/{log_id}", response_model=LogResponse)
 def get_log_by_id(log_id: int, db: Session = Depends(get_db)):
     log = crud.get_log_with_id(db, log_id)
@@ -143,18 +142,50 @@ def get_monthly_reading_stats_endpoint(
 ):
     return crud.monthly_reading_stats(db, year=year)
 
+
 @app.get("/stats/readinglogs/", response_model=list[schemas.LogResponse])
-def get_all_logs(db: Session = Depends(get_db),
-                 skip: int = 0,
-                 limit: int = 100,
-                 sort_by: Literal["date", "pages"] | None = None,
-                 start_date: AnnotatedDate = None,
-                 end_date: AnnotatedDate = None,
-                 rating_filter: int | None = Query(default=None, ge=1, le=10)):
-    
-    return crud.get_all_logs(db, skip=skip, limit=limit, sort_by=sort_by, start_date=start_date, end_date=end_date, rating_filter=rating_filter)
+def get_all_logs(
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: Literal["date", "pages"] | None = None,
+    start_date: AnnotatedDate = None,
+    end_date: AnnotatedDate = None,
+    rating_filter: int | None = Query(default=None, ge=1, le=10),
+):
+
+    return crud.get_all_logs(
+        db,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        start_date=start_date,
+        end_date=end_date,
+        rating_filter=rating_filter,
+    )
+
 
 @app.get("/stats/books-pages-average/", response_model=schemas.BookPageAverageResponse)
 def books_pages_average(db: Session = Depends(get_db)):
     avg_pages = crud.get_books_pages_average(db)
     return {"average_pages": avg_pages}
+
+
+@app.patch("/update/update-book-stats/{book_id}", response_model=schemas.BookResponse)
+def update_book(
+    book_id: int, update_data: schemas.BookUpdate, db: Session = Depends(get_db)
+):
+    updated_book = crud.update_book(db, book_id, update_data)
+    if not updated_book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return updated_book
+
+
+@app.patch("/update/update-log-stats/{log_id}", response_model=schemas.LogResponse)
+def update_log(
+    log_id: int, update_data: schemas.LogUpdate, db: Session = Depends(get_db)
+):
+    updated_log = crud.update_log(db, log_id, update_data)
+    if not updated_log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    return updated_log

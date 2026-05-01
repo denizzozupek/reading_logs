@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, func
 from datetime import date
 from app.models import Book, ReadLog
-from app.schemas import BookAndLogCreate
+from app.schemas import BookAndLogCreate, BookUpdate, LogUpdate
 
 
 def create_book_and_log(db: Session, data: BookAndLogCreate):
@@ -58,6 +58,46 @@ def delete_book_log(db: Session, log_id: int):
         db.commit()
         return True
     return False
+
+
+def update_book(db: Session, book_id: int, update_data: BookUpdate):
+
+    db_book = db.get(Book, book_id)
+
+    if not db_book:
+        return None
+
+    update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
+
+    for key, value in update_dict.items():
+        setattr(db_book, key, value)
+
+    db.commit()
+    db.refresh(db_book)
+    return db_book
+
+
+def update_log(db: Session, log_id: int, update_data: LogUpdate):
+
+    db_log = db.get(ReadLog, log_id)
+
+    if not db_log:
+        return None
+
+    update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
+
+    read_month = update_dict.pop("read_month", db_log.read_date.month)
+    read_year = update_dict.pop("read_year", db_log.read_date.year)
+
+    if "read_month" in update_data.model_fields_set or "read_year" in update_data.model_fields_set:
+        db_log.read_date = date(read_year, read_month, 1)
+
+    for key, value in update_dict.items():
+        setattr(db_log, key, value)
+
+    db.commit()
+    db.refresh(db_log)
+    return db_log
 
 
 def get_all_logs(
