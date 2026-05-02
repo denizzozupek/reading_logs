@@ -89,7 +89,10 @@ def update_log(db: Session, log_id: int, update_data: LogUpdate):
     read_month = update_dict.pop("read_month", db_log.read_date.month)
     read_year = update_dict.pop("read_year", db_log.read_date.year)
 
-    if "read_month" in update_data.model_fields_set or "read_year" in update_data.model_fields_set:
+    if (
+        "read_month" in update_data.model_fields_set
+        or "read_year" in update_data.model_fields_set
+    ):
         db_log.read_date = date(read_year, read_month, 1)
 
     for key, value in update_dict.items():
