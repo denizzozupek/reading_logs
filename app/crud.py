@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select, func
+from sqlalchemy import select, func, extract
 from datetime import date
 from app.models import Book, ReadLog
 from app.schemas import BookAndLogCreate, BookUpdate, LogUpdate
@@ -250,17 +250,17 @@ def get_log_with_id(db: Session, log_id: int):
 def monthly_reading_stats(db: Session, year: int | None = None):
     query = (
         select(
-            func.date_part("month", ReadLog.read_date).label("month"),
+            extract("month", ReadLog.read_date).label("month"),
             func.count(ReadLog.id),
             func.sum(ReadLog.read_pages),
         )
         .where(ReadLog.status == "okundu")
-        .group_by(func.date_part("month", ReadLog.read_date))
-        .order_by(func.date_part("month", ReadLog.read_date))
+        .group_by(extract("month", ReadLog.read_date))
+        .order_by(extract("month", ReadLog.read_date))
     )
 
     if year is not None:
-        query = query.where(func.date_part("year", ReadLog.read_date) == year)
+        query = query.where(extract("year", ReadLog.read_date) == year)
     results = db.execute(query).all()
     return [
         {
