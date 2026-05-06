@@ -30,7 +30,7 @@ def get_db():
         db.close()
 
 
-@app.post("/readinglogs/", response_model=LogResponse)
+@app.post("/readinglogs/", response_model=LogResponse, status_code=201)
 def add_reading_log(data: BookAndLogCreate, db: Session = Depends(get_db)):
     new_log = crud.create_book_and_log(db, data)
     return new_log
