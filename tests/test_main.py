@@ -227,12 +227,13 @@ def test_get_rating_average_by_genre(db_session, client, test_book_and_log_data)
 
     data = response.json()
     assert len(data) == 2
-    
+
     result_dict = {item["genre"]: item["average_rating"] for item in data}
     assert result_dict == {
         "Dystopian": 8.0,
         "Fantasy": 9.5,
     }
+
 
 def test_get_rating_average_by_author(db_session, client, test_book_and_log_data):
     created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
@@ -267,3 +268,201 @@ def test_get_rating_average_by_author(db_session, client, test_book_and_log_data
         {"author": "J.R.R. Tolkien", "average_rating": 9.5},
     ]
 
+
+def test_get_monthly_reading_stats(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2025,
+    )
+
+    year = 2025
+
+    created_log2 = crud.create_book_and_log(db_session, book2)
+
+    response = client.get("/stats/monthly-reading-stats", params={"year": year})
+    assert response.status_code == 200
+
+    assert response.json() == [
+        {"month": 5, "count": 1, "total_pages": 400},
+        {"month": 6, "count": 1, "total_pages": 300},
+    ]
+
+
+def test_books_pages_average(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2025,
+    )
+
+    book3 = comic_book = schemas.BookAndLogCreate(
+        title="Çizgi Roman",
+        author="Çizer",
+        genre="Çizgi Roman",
+        page_count=1000,
+        rating=8,
+        read_month=8,
+        read_year=2025,
+    )
+
+    created_log2 = crud.create_book_and_log(db_session, book2)
+    created_log3 = crud.create_book_and_log(db_session, book3)
+
+    response = client.get("/stats/books-pages-average")
+    assert response.status_code == 200
+
+    assert response.json() == {"average_pages": 350}
+
+
+def test_update_book(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    book_id = created_log.book.id
+
+    update_data = {"page_count": 500}
+    response = client.patch(f"/update/update-book-stats/{book_id}", json=update_data)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == created_log.book.title
+    assert data["author"] == created_log.book.author
+    assert data["genre"] == created_log.book.genre
+    assert data["page_count"] == update_data["page_count"]
+
+
+def test_update_book_not_found(client):
+    book_id = 999
+    response = client.patch(f"/update/update-book-stats/{book_id}", json={})
+    assert response.status_code == 404
+
+
+def test_update_log(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    log_id= created_log.id
+
+    update_data = {"rating": 7}
+    response = client.patch(f"/update/update-log-stats/{log_id}", json=update_data)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "read_date" in data
+    year_str, month_str, _ = data["read_date"].split("-")
+    assert int(month_str) == created_log.read_date.month
+    assert int(year_str) == created_log.read_date.year
+    assert data["rating"] == update_data["rating"]
+
+def test_update_log_not_found(client):
+    book_id = 999
+    response = client.patch(f"/update/update-log-stats/{book_id}", json={})
+    assert response.status_code == 404
+
+
+def test_get_all_logs_sort_by_pages(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2025,
+    )
+
+    created_log2 = crud.create_book_and_log(db_session, book2)
+    
+    response = client.get("/stats/readinglogs/?skip=0&limit=100&sort_by=pages")
+    data = response.json()
+    
+    assert response.status_code == 200
+    assert len(data) >= 2
+    assert data[0]["read_pages"] >= data[1]["read_pages"]
+
+
+def test_get_all_logs_sort_by_date(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2024,
+    )
+
+    created_log2 = crud.create_book_and_log(db_session, book2)
+
+    response = client.get("/stats/readinglogs/?skip=0&limit=100&sort_by=date")
+    data = response.json() 
+    assert response.status_code == 200
+    assert len(data) >= 2
+    assert data[0]["read_date"] >= data[1]["read_date"]
+
+
+def test_get_all_logs_filter_by_limit_skip(db_session, client, test_book_and_log_data): 
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2025,
+    )
+
+    book3 = schemas.BookAndLogCreate(
+        title="1984",
+        author="George Orwell",
+        genre="Dystopian",
+        page_count=350,
+        rating=8,
+        read_month=7,
+        read_year=2025,
+    )
+    created_log2 = crud.create_book_and_log(db_session, book2)
+    created_log3 = crud.create_book_and_log(db_session, book3)
+    response = client.get("/stats/readinglogs/?skip=1&limit=1")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) == 1
+
+
+def test_get_all_logs_filter_by_rating(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+    book2 = schemas.BookAndLogCreate(
+        title="Hobbit",
+        author="J.R.R. Tolkien",
+        genre="Fantasy",
+        page_count=300,
+        rating=9,
+        read_month=6,
+        read_year=2025,
+    )
+    created_log2 = crud.create_book_and_log(db_session, book2)
+    response = client.get("/stats/readinglogs/?skip=0&limit=100&rating_filter=10")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) >= 1
+    for log in data:
+        assert log["rating"] == 10
+
+def test_get_all_logs_success(db_session, client, test_book_and_log_data):
+    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
+
+    response = client.get("/stats/readinglogs/")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) >= 1
