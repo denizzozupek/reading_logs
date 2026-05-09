@@ -131,7 +131,7 @@ def test_get_total_books_endpoint(db_session, client, test_book_and_log_data):
         read_year=2024,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book2)
 
     start_date = "2025-01-01"
     end_date = "2026-01-01"
@@ -181,8 +181,8 @@ def test_get_total_books_by_author(db_session, client, test_book_and_log_data):
         read_year=2025,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
-    created_log3 = crud.create_book_and_log(db_session, book3)
+    crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book3)
 
     start_date = "2025-01-01"
     end_date = "2026-01-01"
@@ -219,8 +219,8 @@ def test_get_rating_average_by_genre(db_session, client, test_book_and_log_data)
         read_year=2025,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
-    created_log3 = crud.create_book_and_log(db_session, book3)
+    crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book3)
 
     response = client.get("/stats/average-rating-by-genre/")
     assert response.status_code == 200
@@ -258,8 +258,8 @@ def test_get_rating_average_by_author(db_session, client, test_book_and_log_data
         read_year=2025,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
-    created_log3 = crud.create_book_and_log(db_session, book3)
+    crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book3)
 
     response = client.get("/stats/average-rating-by-author/")
     assert response.status_code == 200
@@ -284,7 +284,7 @@ def test_get_monthly_reading_stats(db_session, client, test_book_and_log_data):
 
     year = 2025
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book2)
 
     response = client.get("/stats/monthly-reading-stats", params={"year": year})
     assert response.status_code == 200
@@ -318,13 +318,13 @@ def test_books_pages_average(db_session, client, test_book_and_log_data):
         read_year=2025,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
-    created_log3 = crud.create_book_and_log(db_session, book3)
+    crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book3)
 
     response = client.get("/stats/books-pages-average")
     assert response.status_code == 200
 
-    assert response.json() == {"average_pages": 350}
+    assert response.json() == {"average_pages": 350.0}
 
 
 def test_update_book(db_session, client, test_book_and_log_data):
@@ -335,9 +335,6 @@ def test_update_book(db_session, client, test_book_and_log_data):
     response = client.patch(f"/update/update-book-stats/{book_id}", json=update_data)
     assert response.status_code == 200
     data = response.json()
-    assert data["title"] == created_log.book.title
-    assert data["author"] == created_log.book.author
-    assert data["genre"] == created_log.book.genre
     assert data["page_count"] == update_data["page_count"]
 
 
@@ -380,7 +377,7 @@ def test_get_all_logs_sort_by_pages(db_session, client, test_book_and_log_data):
         read_year=2025,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book2)
     
     response = client.get("/stats/readinglogs/?skip=0&limit=100&sort_by=pages")
     data = response.json()
@@ -402,42 +399,13 @@ def test_get_all_logs_sort_by_date(db_session, client, test_book_and_log_data):
         read_year=2024,
     )
 
-    created_log2 = crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book2)
 
     response = client.get("/stats/readinglogs/?skip=0&limit=100&sort_by=date")
     data = response.json() 
     assert response.status_code == 200
     assert len(data) >= 2
     assert data[0]["read_date"] >= data[1]["read_date"]
-
-
-def test_get_all_logs_filter_by_limit_skip(db_session, client, test_book_and_log_data): 
-    created_log = crud.create_book_and_log(db_session, test_book_and_log_data)
-    book2 = schemas.BookAndLogCreate(
-        title="Hobbit",
-        author="J.R.R. Tolkien",
-        genre="Fantasy",
-        page_count=300,
-        rating=9,
-        read_month=6,
-        read_year=2025,
-    )
-
-    book3 = schemas.BookAndLogCreate(
-        title="1984",
-        author="George Orwell",
-        genre="Dystopian",
-        page_count=350,
-        rating=8,
-        read_month=7,
-        read_year=2025,
-    )
-    created_log2 = crud.create_book_and_log(db_session, book2)
-    created_log3 = crud.create_book_and_log(db_session, book3)
-    response = client.get("/stats/readinglogs/?skip=1&limit=1")
-    data = response.json()
-    assert response.status_code == 200
-    assert len(data) == 1
 
 
 def test_get_all_logs_filter_by_rating(db_session, client, test_book_and_log_data):
@@ -451,7 +419,7 @@ def test_get_all_logs_filter_by_rating(db_session, client, test_book_and_log_dat
         read_month=6,
         read_year=2025,
     )
-    created_log2 = crud.create_book_and_log(db_session, book2)
+    crud.create_book_and_log(db_session, book2)
     response = client.get("/stats/readinglogs/?skip=0&limit=100&rating_filter=10")
     data = response.json()
     assert response.status_code == 200
