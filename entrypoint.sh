@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "PostgreSQL bekleniyor..."
-while ! pg_isready -h db -p 5432 > /dev/null 2>&1; do
+while ! pg_isready -h $PGHOST -p 5432 > /dev/null 2>&1; do
   sleep 1
 done
 
