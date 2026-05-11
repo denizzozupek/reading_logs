@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
 from typing import Annotated, Literal
+import os
 
 from app import schemas
 from app.database import SessionLocal
@@ -21,6 +22,8 @@ app.add_middleware(
 
 AnnotatedDate = Annotated[date | None, Query(description="Filter by date (YYYY-MM-DD)")]
 
+API_KEY = os.getenv("API_KEY")
+
 
 def get_db():
     db = SessionLocal()
@@ -30,13 +33,19 @@ def get_db():
         db.close()
 
 
-@app.post("/readinglogs/", response_model=LogResponse, status_code=201)
+def verify_api_key(x_api_key: str = Header()):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+    return x_api_key
+
+
+@app.post("/readinglogs/", response_model=LogResponse, status_code=201, dependencies=[Depends(verify_api_key)])
 def add_reading_log(data: BookAndLogCreate, db: Session = Depends(get_db)):
     new_log = crud.create_book_and_log(db, data)
     return new_log
 
 
-@app.delete("/readinglogs/{log_id}")
+@app.delete("/readinglogs/{log_id}", dependencies=[Depends(verify_api_key)])
 def delete_reading_log(log_id: int, db: Session = Depends(get_db)):
     success = crud.delete_book_log(db, log_id)
     if success:
@@ -171,7 +180,7 @@ def books_pages_average(db: Session = Depends(get_db)):
     return {"average_pages": avg_pages}
 
 
-@app.patch("/update/update-book-stats/{book_id}", response_model=schemas.BookResponse)
+@app.patch("/update/update-book-stats/{book_id}", response_model=schemas.BookResponse, dependencies=[Depends(verify_api_key)])
 def update_book(
     book_id: int, update_data: schemas.BookUpdate, db: Session = Depends(get_db)
 ):
@@ -181,7 +190,7 @@ def update_book(
     return updated_book
 
 
-@app.patch("/update/update-log-stats/{log_id}", response_model=schemas.LogResponse)
+@app.patch("/update/update-log-stats/{log_id}", response_model=schemas.LogResponse, dependencies=[Depends(verify_api_key)])
 def update_log(
     log_id: int, update_data: schemas.LogUpdate, db: Session = Depends(get_db)
 ):
