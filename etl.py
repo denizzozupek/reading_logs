@@ -13,7 +13,7 @@ EXPECTED_COLUMNS = [
     "genre",
     "page_count",
     "rating",
-    "read_month",
+    "month",
     "read_year",
 ]
 
@@ -39,13 +39,13 @@ def load_books_from_csv(file_path: str):
         for row in enumerate(csv_reader, start=2):
             try:
                 book_and_log_data = BookAndLogCreate(
-                    title=row["title"],
-                    author=row["author"],
-                    genre=row["genre"],
-                    page_count=int(row["page_count"]),
-                    rating=int(row["rating"]),
-                    read_month=int(row["read_month"]),
-                    read_year=int(row["read_year"]),
+                    title=row[1]["title"],
+                    author=row[1]["author"],
+                    genre=row[1]["genre"],
+                    page_count=int(row[1]["page_count"]),
+                    rating=int(row[1]["rating"]),
+                    read_month=int(row[1]["month"]),
+                    read_year=int(row[1]["read_year"]),
                 )
 
                 create_book_and_log(db, book_and_log_data)
@@ -54,7 +54,7 @@ def load_books_from_csv(file_path: str):
             except IntegrityError:
 
                 db.rollback()
-                print(f"Row {row[0]} skipped: Book '{row['title']}' by {row['author']} already exists.")
+                print(f"Row {row[0]} skipped: Book '{row[1]['title']}' by {row[1]['author']} already exists.")
                 skipped_count += 1
 
             except Exception as e:
